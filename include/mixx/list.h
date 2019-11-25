@@ -1,72 +1,24 @@
 #ifndef _MIXX_H_LIST_H_
 #define _MIXX_H_LIST_H_
+#include <mixx/detail/list_base.h>
 #include <mixx/detail/noncopyable.h>
-#include <mixx/mixx_env.h>
 #include <memory>
 
 namespace mixx {
 
-template <typename T>
-struct __list_node {
-    using value_type = T;
-    value_type value;
-    __list_node* prev;
-    __list_node* next;
-};
-
-template <typename T>
-class list_iterator {
-public:
-    using node_type = __list_node<T>;
-    using value_type = T;
-    explicit list_iterator(void* p = nullptr) {
-        _p = static_cast<node_type*>(p);
-    }
-
-    MIXX_FORCEINLINE list_iterator& operator++() {
-        _p = _p->next;
-        return *this;
-    }
-
-    MIXX_FORCEINLINE list_iterator& operator++(int) {
-        list_iterator tmp(*this);
-        _p = _p->next;
-        return tmp;
-    }
-
-    MIXX_FORCEINLINE value_type& operator*() {
-        return _p->value;
-    }
-
-    MIXX_FORCEINLINE bool operator==(list_iterator const& rhs) {
-        return _p == rhs._p;
-    }
-
-    MIXX_FORCEINLINE bool operator!=(list_iterator const& rhs) {
-        return _p != rhs._p;
-    }
-
-    MIXX_FORCEINLINE node_type* node() const {
-        return _p;
-    }
-    
-private:
-    node_type* _p;
-};
-
 template <typename T, typename Allocator = std::allocator<T>>
-class list: noncopyable {
-    using node_type = __list_node<T>;
+class list : noncopyable {
+    using node_type = list_impl::list_node<T>;
     using node_pointer = node_type*;
 public:
     using value_type = T;
     using alloc_type = Allocator;
-    using iterator = list_iterator<T>;
+    using iterator = list_impl::list_iterator<T>;
 
     explicit list(alloc_type const& alloc = alloc_type());
     ~list() noexcept;
-    template <typename ...Args> iterator emplace_back_to(iterator const& target, Args&& ...args);
     template <typename ...Args> iterator emplace_front_of(iterator const& target, Args&& ...args);
+    template <typename ...Args> iterator emplace_back_to(iterator const& target, Args&& ...args);
     template <typename ...Args> iterator emplace_front(Args&& ...args);
     template <typename ...Args> iterator emplace_back(Args&& ...args);
     iterator remove_node(iterator const& target) noexcept;
@@ -82,6 +34,10 @@ public:
 
     MIXX_FORCEINLINE iterator end() const {
         return iterator{ nullptr };
+    }
+
+    MIXX_FORCEINLINE bool empty() const {
+        return _head->next == nullptr;
     }
 
 private:
@@ -104,7 +60,7 @@ private:
 };
 
 template <typename T, typename Allocator>
-list<T, Allocator>::list(alloc_type const& alloc): _alproxy(alloc) {
+list<T, Allocator>::list(alloc_type const& alloc) : _alproxy(alloc) {
     _tail = _head = _allocate_node();
     _head->prev = nullptr;
     _head->next = nullptr;
@@ -119,29 +75,14 @@ list<T, Allocator>::~list() noexcept {
 
 template <typename T, typename Allocator>
 template <typename ... Args>
-typename list<T, Allocator>::iterator list<T, Allocator>::emplace_back_to(iterator const& target, Args&&... args) {
-    node_pointer dest = target.node(), next = dest->next, node = _allocate_node();
-    _init_value(node, std::forward<Args>(args)...);
-    node->prev = dest; node->next = next;
-    dest->next = node;
-    if (next != nullptr)
-        next->prev = node;
-    else
-        _tail = node;
-    _size += 1;
-    return iterator(node);
+typename list<T, Allocator>::iterator list<T, Allocator>::emplace_front_of(iterator const& target, Args&&... args) {
+    return list_impl::emplace_front_of(*this, target, std::forward<Args>(args)...);
 }
 
 template <typename T, typename Allocator>
 template <typename ... Args>
-typename list<T, Allocator>::iterator list<T, Allocator>::emplace_front_of(iterator const& target, Args&&... args) {
-    node_pointer dest = target.node(), prev = dest->prev, node = _allocate_node();
-    _init_value(node, std::forward<Args>(args)...);
-    node->prev = prev; node->next = dest;
-    dest->prev = node;
-    prev->next = node;
-    _size -= 1;
-    return iterator(node);
+typename list<T, Allocator>::iterator list<T, Allocator>::emplace_back_to(iterator const& target, Args&&... args) {
+    return list_impl::emplace_back_to(*this, target, std::forward<Args>(args)...);
 }
 
 template <typename T, typename Allocator>
@@ -158,15 +99,7 @@ typename list<T, Allocator>::iterator list<T, Allocator>::emplace_back(Args&&...
 
 template <typename T, typename Allocator>
 typename list<T, Allocator>::iterator list<T, Allocator>::remove_node(iterator const& target) noexcept {
-    node_pointer dest = target.node(), prev = dest->prev, next = dest->next;
-    _free_value(dest);
-    prev->next = next;
-    if (next != nullptr)
-        next->prev = prev;
-    else
-        _tail = prev;
-    _deallocate_node(dest);
-    return iterator(next);
+    return list_impl::remove_node(*this, target);
 }
 
 template <typename T, typename Allocator>
