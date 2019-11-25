@@ -21,7 +21,7 @@ void* segregated_storage::allocate() {
     return nullptr;
 }
 
-void segregated_storage::deallocate(void* p) noexcept {
+void segregated_storage::deallocate(void* p) {
     assert(static_cast<char*>(p) >= static_cast<char*>(buffer) &&
         static_cast<char*>(p) < static_cast<char*>(buffer) + bufsize);
     _free_list.push(p);
@@ -32,6 +32,10 @@ void segregated_storage::reset() {
     for (mixx_size_t i = 0; i < capacity; ++i)
         p[i] = seek_pointer(buffer, block_size * i);
     _free_list._config(capacity);
+}
+
+double segregated_storage::fill_rate() const {
+    return static_cast<double>(_free_list.size()) / static_cast<double>(_free_list.capacity());
 }
 
 } // !namespace mixx

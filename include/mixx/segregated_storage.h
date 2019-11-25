@@ -9,8 +9,9 @@ class segregated_storage final : noncopyable {
 public:
     segregated_storage(void* preallocated, mixx_size_t bufsize, mixx_size_t block_size);
     void* allocate();
-    void deallocate(void* p) noexcept;
+    void deallocate(void* p);
     void reset();
+    double fill_rate() const;
 
     void* const buffer;
     mixx_size_t const bufsize;
