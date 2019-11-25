@@ -136,6 +136,133 @@ void pooling_list<T, PoolTy>::_deallocate_node(node_type* node) {
     _pool.deallocate(node);
 }
 
+/* class private_pooling_list */
+
+template <typename ValueType, unsigned ClusterSize = 256, typename Allocator = std::allocator<ValueType>>
+class private_pooling_list : noncopyable {
+    using node_type = list_impl::list_node<ValueType>;
+public:
+    using value_type = ValueType;
+    using alloc_type = Allocator;
+    using iterator = list_impl::list_iterator<value_type>;
+    constexpr static unsigned cluster_size = ClusterSize;
+    explicit private_pooling_list(mixx_size_t pool_reserved = cluster_size, const alloc_type& alloc = alloc_type());
+    ~private_pooling_list() noexcept;
+    template <typename ...Args> iterator emplace_front_of(iterator target, Args&& ...args);
+    template <typename ...Args> iterator emplace_back_to(iterator target, Args&& ...args);
+    template <typename ...Args> iterator emplace_front(Args&& ...args);
+    template <typename ...Args> iterator emplace_back(Args&& ...args);
+    iterator remove_node(iterator target) noexcept;
+    void reserve_pool(mixx_size_t size);
+    void clear();
+
+    MIXX_FORCEINLINE iterator begin() const {
+        return iterator(_head->next);
+    }
+
+    MIXX_FORCEINLINE iterator tail() const {
+        return iterator(_tail);
+    }
+
+    MIXX_FORCEINLINE iterator end() const {
+        return iterator(nullptr);
+    }
+
+    MIXX_FORCEINLINE bool empty() const {
+        return _head->next == nullptr;
+    }
+
+private:
+    using alproxy_t = typename std::allocator_traits<alloc_type>::template rebind_alloc<node_type>;
+    node_type* _head;
+    node_type* _tail;
+    mixx_size_t _size;
+    object_pool<node_type, cluster_size, alproxy_t> _pool;
+    node_type* _allocate_node();
+    void _deallocate_node(node_type* node) noexcept;
+
+    template <typename ...Args>
+    static MIXX_FORCEINLINE void _construct_data(node_type* node, Args ...args) {
+        new (&node->value) value_type(std::forward<Args>(args)...);
+    }
+
+    static MIXX_FORCEINLINE void _destruct_data(node_type* node) {
+        node->value.~value_type();
+    }
+};
+
+template <typename ValueType, unsigned ClusterSize, typename Allocator>
+private_pooling_list<ValueType, ClusterSize, Allocator>::private_pooling_list(mixx_size_t pool_reserved, const alloc_type& alloc) :
+    _pool(pool_reserved, alloc) {
+    node_type* head = _allocate_node();
+    head->next = nullptr;
+    head->prev = nullptr;
+    _tail = _head = head;
+    _size = 0;
+}
+
+template <typename ValueType, unsigned ClusterSize, typename Allocator>
+private_pooling_list<ValueType, ClusterSize, Allocator>::~private_pooling_list() noexcept {
+    clear();
+    _deallocate_node(_head);
+}
+
+template <typename ValueType, unsigned ClusterSize, typename Allocator>
+template <typename ... Args>
+typename private_pooling_list<ValueType, ClusterSize, Allocator>::iterator
+private_pooling_list<ValueType, ClusterSize, Allocator>::emplace_front_of(iterator target, Args&&... args) {
+    return list_impl::emplace_front_of(*this, target, std::forward<Args>(args)...);
+}
+
+template <typename ValueType, unsigned ClusterSize, typename Allocator>
+template <typename ... Args>
+typename private_pooling_list<ValueType, ClusterSize, Allocator>::iterator
+private_pooling_list<ValueType, ClusterSize, Allocator>::emplace_back_to(iterator target, Args&&... args) {
+    return list_impl::emplace_back_to(*this, target, std::forward<Args>(args)...);
+}
+
+template <typename ValueType, unsigned ClusterSize, typename Allocator>
+template <typename ... Args>
+typename private_pooling_list<ValueType, ClusterSize, Allocator>::iterator
+private_pooling_list<ValueType, ClusterSize, Allocator>::emplace_front(Args&&... args) {
+    return emplace_back_to(iterator(_head), std::forward<Args>(args)...);
+}
+
+template <typename ValueType, unsigned ClusterSize, typename Allocator>
+template <typename ... Args>
+typename private_pooling_list<ValueType, ClusterSize, Allocator>::iterator
+private_pooling_list<ValueType, ClusterSize, Allocator>::emplace_back(Args&&... args) {
+    return emplace_back_to(iterator(_tail), std::forward<Args>(args)...);
+}
+
+template <typename ValueType, unsigned ClusterSize, typename Allocator>
+typename private_pooling_list<ValueType, ClusterSize, Allocator>::iterator
+private_pooling_list<ValueType, ClusterSize, Allocator>::remove_node(iterator target) noexcept {
+    return list_impl::remove_node(*this, target);
+}
+
+template <typename ValueType, unsigned ClusterSize, typename Allocator>
+void private_pooling_list<ValueType, ClusterSize, Allocator>::reserve_pool(mixx_size_t size) {
+    _pool.reserve(size);
+}
+
+template <typename ValueType, unsigned ClusterSize, typename Allocator>
+void private_pooling_list<ValueType, ClusterSize, Allocator>::clear() {
+    while (_head->next != nullptr)
+        remove_node(iterator(_head->next));
+    assert(_size == 0);
+}
+
+template <typename ValueType, unsigned ClusterSize, typename Allocator>
+typename private_pooling_list<ValueType, ClusterSize, Allocator>::node_type* private_pooling_list<ValueType, ClusterSize, Allocator>::_allocate_node() {
+    return _pool.allocate();
+}
+
+template <typename ValueType, unsigned ClusterSize, typename Allocator>
+void private_pooling_list<ValueType, ClusterSize, Allocator>::_deallocate_node(node_type* node) noexcept {
+    _pool.deallocate(node);
+}
+
 } // !namespace mixx
 
 #endif // _MIXX_POOLING_LIST_H_
