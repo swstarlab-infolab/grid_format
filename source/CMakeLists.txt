@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.0)
 project(GStream3)
 
+# C++
 set(CMAKE_CXX_COMPILER g++)
-
 set(CMAKE_CXX_FLAGS "-Wall -O3 --std=c++14")
 
 include_directories(${CMAKE_SOURCE_DIR}/include)
