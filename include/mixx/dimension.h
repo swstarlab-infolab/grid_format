@@ -13,6 +13,17 @@ struct dim2 {
     }
 };
 
+template <typename ValueTy>
+struct dim3 {
+    using value_type = ValueTy;
+    value_type x;
+    value_type y;
+    value_type z;
+    value_type size() const {
+        return x * y * z;
+    }
+};
+
 } // !namespace mixx
 
 #endif // !_MIXX_DIMENSION_H_
