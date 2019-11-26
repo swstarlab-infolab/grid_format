@@ -24,12 +24,13 @@ public:
     template <typename ...Args> mixx_size_t emplace(Args&& ...);
     bool pop();
     bool pop(value_type*);
-    MIXX_FORCEINLINE value_type& peek();
-    MIXX_FORCEINLINE bool empty() const;
-    MIXX_FORCEINLINE mixx_size_t capacity() const;
-    MIXX_FORCEINLINE mixx_size_t size() const;
+    value_type& peek();
+    bool empty() const;
+    mixx_size_t capacity() const;
+    mixx_size_t size() const;
     void clear();
     void reserve(mixx_size_t new_capacity);
+    void iterate(void(*f)(value_type&));
 
     void _config(mixx_size_t top);
     value_type* _get_buffer();
@@ -45,7 +46,7 @@ protected:
 };
 
 template <typename ValueType, typename Allocator>
-stack<ValueType, Allocator>::stack(mixx_size_t const capacity_, alloc_type const& alloc):
+stack<ValueType, Allocator>::stack(mixx_size_t const capacity_, alloc_type const& alloc) :
     _alloc(alloc) {
     _cap = roundup2(capacity_);
     _top = 0;
@@ -53,7 +54,7 @@ stack<ValueType, Allocator>::stack(mixx_size_t const capacity_, alloc_type const
 }
 
 template <typename ValueType, typename Allocator>
-stack<ValueType, Allocator>::stack(stack const& other):
+stack<ValueType, Allocator>::stack(stack const& other) :
     _alloc(other._alloc) {
     _cap = other._cap;
     _top = other._top;
@@ -62,7 +63,7 @@ stack<ValueType, Allocator>::stack(stack const& other):
 }
 
 template <typename ValueType, typename Allocator>
-stack<ValueType, Allocator>::stack(stack&& other) noexcept:
+stack<ValueType, Allocator>::stack(stack&& other) noexcept :
     _alloc(std::move(other._alloc)) {
     _cap = other._cap;
     _top = other._top;
@@ -99,7 +100,7 @@ stack<ValueType, Allocator>& stack<ValueType, Allocator>::operator=(stack&& rhs)
 
 template <typename ValueType, typename Allocator>
 mixx_size_t stack<ValueType, Allocator>::push(value_type const& lvalue) {
-    value_type* buf =  _acquire_buffer();
+    value_type* buf = _acquire_buffer();
     new (buf) value_type(lvalue);
     return _top - 1;
 }
@@ -134,6 +135,7 @@ bool stack<ValueType, Allocator>::pop(value_type* out) {
     value_type& val = peek();
     *out = std::move(val);
     val.~value_type();
+    _top -= 1;
     return true;
 }
 
@@ -173,6 +175,15 @@ void stack<ValueType, Allocator>::reserve(mixx_size_t new_capacity) {
     copy_array(_cont, old, size());
     std::allocator_traits<alloc_type>::deallocate(_alloc, old, _cap);
     _cap = new_capacity;
+}
+
+template <typename ValueType, typename Allocator>
+void stack<ValueType, Allocator>::iterate(void(*f)(value_type&)) {
+    if (size() == 0)
+        return;
+    for (size_t i = _top; i != 0; --i) {
+        f(_cont[i - 1]);
+    }
 }
 
 template <typename ValueType, typename Allocator>
