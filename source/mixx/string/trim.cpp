@@ -1,4 +1,5 @@
 #include <mixx/string.h>
+#include <string.h>
 #include <algorithm>
 
 namespace mixx {
@@ -38,7 +39,7 @@ std::string trim_copy(std::string s, char c) {
 char* trim_path(char* path) {
     char* pos = strrchr(path, MIXX_PATH_SEPARATOR);
     if (pos == (path + (strlen(path) - 1)))
-        * pos = 0;
+        *pos = 0;
     return path;
 }
 
