@@ -149,11 +149,47 @@ struct static_log2 {
 private:
     static constexpr uint32_t R = (V > 0xFFFF);
 public:
-    static constexpr uint32_t value = 
+    static constexpr uint32_t value =
         _static_log2_impl<3, (V >> R), R, 0xFF, 0xF, 0x3>::value;
 };
 
-enum class size_prefix: int {
+inline unsigned log2u(unsigned v) {
+    // source: https://graphics.stanford.edu/~seander/bithacks.html
+    static unsigned const b[] = { 0x2, 0xC, 0xF0, 0xFF00, 0xFFFF0000 };
+    static unsigned const s[] = { 1, 2, 4, 8, 16 };
+    unsigned int r = 0;
+    for (auto i = 4; i >= 0; i--) {
+        if (v & b[i]) {
+            v >>= s[i];
+            r |= s[i];
+        }
+    }
+    return r;
+}
+
+inline uint64_t log2u(uint64_t v) {
+    static uint64_t const b[] = { 0x2, 0xC, 0xF0, 0xFF00, 0xFFFF0000, 0xFFFFFFFF00000000 };
+    static uint64_t const s[] = { 1, 2, 4, 8, 16, 32 };
+    uint64_t r = 0;
+    for (auto i = 5; i >= 0; i--) {
+        if (v & b[i]) {
+            v >>= s[i];
+            r |= s[i];
+        }
+    }
+    return r;
+}
+
+inline unsigned log2u_nb(unsigned v) {
+    unsigned r = (v > 0xFFFF) << 4; v >>= r;
+    unsigned shift = (v > 0xFF) << 3; v >>= shift; r |= shift;
+    shift = (v > 0xF) << 2; v >>= shift; r |= shift;
+    shift = (v > 0x3) << 1; v >>= shift; r |= shift;
+    r |= (v >> 1);
+    return r;
+}
+
+enum class size_prefix : int {
     EiB = 0,
     PiB,
     TiB,
