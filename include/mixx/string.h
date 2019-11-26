@@ -5,7 +5,9 @@
 
 namespace mixx {
 
-char* dirname(char* __restrict buffer, mixx_size_t bufsize, char const* __restrict input, char const separator);
+char* dirname(char* __restrict buffer, mixx_size_t bufsize, char const* __restrict input, char separator);
+void dirname(std::string& s, char separator);
+std::string dirname_copy(std::string const& s, char separator);
 char const* basename(char const* path, char separator = MIXX_PATH_SEPARATOR);
 char* replace_character(char* s, char find, char replace);
 
